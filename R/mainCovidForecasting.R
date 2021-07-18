@@ -16,6 +16,6 @@ source("R/linearAnalisys.R")
 data = read.csv(file = "Data/Brazil_210319.csv", sep = ";")#View(data)
 incDia = data$inc_dia ; plot.ts(incDia) 
 
-generateImg(incDia)
+trendAnalysis_df = getTrendAnalysis(incDia)#View(trendAnalysis_df)
 
 
