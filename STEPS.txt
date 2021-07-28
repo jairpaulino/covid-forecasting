@@ -1,0 +1,4 @@
+Testar com e sem log
+Testar diferentes médias móveis
+Gerar gráficos geral com linhas
+Gerar três conjuntos diferentes de dados
