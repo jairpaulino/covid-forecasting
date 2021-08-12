@@ -72,7 +72,7 @@ getTrendAnalysis = function(timeSeries_df, w, alpha = 0.05){
 }
 
 generateGraph = function(matrix, timeSeries, w){#i=1
-  matrix = trendAnalysis_df; timeSeries = mm14LogIncDia
+  #matrix = trendAnalysis_df; timeSeries = mm14LogIncDia
   len = length(matrix$Class)
   #lenTs = length(timeSeries)
   drifPosition = NULL; c = 1;
@@ -83,16 +83,16 @@ generateGraph = function(matrix, timeSeries, w){#i=1
     }
   }
   
-  #plot.ts(timeSeries)
+  plot.ts(timeSeries)
   
   plot.ts(timeSeries)
   for (i in 1:length(drifPosition)) {
     abline(v = w + drifPosition[i], col = 2)
   }
-  lm = lm(timeSeries[(w+66-13):(w+66)] ~ seq(1, 14))
-  abline(lm, col = 2, lwd = 2)
+  # lm = lm(timeSeries[(w+66-13):(w+66)] ~ seq(1, 14))
+  # abline(lm, col = 2, lwd = 2)
   
-  return()
+  #return()
 }
 
 
