@@ -93,7 +93,7 @@ getMSE = function(target,forecast){
 getMAPE = function(target,forecast){
   APE = getAPE(target,forecast)
   MAPE = mean(APE, na.rm=TRUE)
-  return(MAPE)
+  return(100*MAPE)
 }
 getARV = function(target,forecast){
   RV = getRV(target,forecast)
