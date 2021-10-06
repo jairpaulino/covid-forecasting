@@ -1,3 +1,5 @@
+library(forecast)
+
 noneTrendTrain = normTrain[which(normTrain$Class == "None"),]
 positiveTrendTrain = normTrain[which(normTrain$Class == "Positive"),]
 negativeTrendTrain = normTrain[which(normTrain$Class == "Negative"),]
@@ -9,32 +11,13 @@ negativeTrendTest = normTest[which(normTest$Class == "Negative"),]
 #View(noneTrendTest); View(positiveTrendTest); View(negativeTrendTest)
 
 # Modelo NONE
-modelNone = keras_model_sequential()
-modelNone %>%
-  layer_dense(units=512, activation = 'relu', 
-              input_shape = c(w)) %>%
-  layer_dense(units=512, activation = 'relu') %>%
-  layer_dense(units=512, activation = 'relu') %>%
-  layer_dense(units=512, activation = 'relu') %>%
-  layer_dense(units=512, activation = 'relu') %>%
-  layer_dense(units=1)
+modelNone = auto.arima(noneTrendTrain$nStepAhead)
+#forecastModeNone = forecast(modelNone, h=21)
+onestep_arima = fitted(Arima(noneTrendTest$nStepAhead))
 
-early_stopping <- callback_early_stopping(monitor = 'val_loss', 
-                                          patience = 5);
-
-#model
-modelNone %>%
-  compile(loss = 'mse', 
-          metrics ="mae", 
-          optimizer = 'rmsprop')
-
-history = modelNone %>% fit(as.matrix(noneTrendTrain[,1:w]), 
-                        noneTrendTrain$nStepAhead,
-                        epochs = 50,
-                        batch_size = 5,
-                        validation_split = 0.2,
-                        callbacks = c(early_stopping))
-#plot(history)
+length(noneTrendTrain$nStepAhead); length(forecastModeNone$fitted)
+plot(forecastModeNone$fitted)
+plot(forecastModeNone)
 
 # Modelo Positive
 modelPositive = keras_model_sequential()
@@ -57,7 +40,7 @@ modelPositive %>%
           optimizer = 'rmsprop')
 
 history = modelPositive %>% 
-  fit(as.matrix(positiveTrendTrain[,1:w]),
+  fit(as.matrix(positiveTrendTrain[,1:12]),
       positiveTrendTrain$nStepAhead,
       epochs = 50,
       batch_size = 5,
@@ -85,15 +68,15 @@ modelNegative %>%
           metrics ="mae", 
           optimizer = 'rmsprop')
 
-history = modelNegative %>% fit(as.matrix(negativeTrendTrain[,1:w]), 
-                                negativeTrendTrain$nStepAhead,
+history = modelNegative %>% fit(as.matrix(negativeTrendTest[,1:12]), 
+                                negativeTrendTest$nStepAhead,
                                 epochs = 50,
                                 batch_size = 5,
                                 validation_split = 0.2,
                                 callbacks = c(early_stopping))
 #plot(history)
 
-# Normal 
+# Normal Negative
 normalModel = keras_model_sequential()
 normalModel %>%
   layer_dense(units=512, activation = 'relu', 
@@ -114,13 +97,14 @@ normalModel %>%
           optimizer = 'rmsprop')
 
 history = normalModel %>% fit(as.matrix(normTrain[,1:w]), 
-                                normTrain$nStepAhead,
-                                epochs = 50,
-                                batch_size = 5,
-                                validation_split = 0.2,
-                                callbacks = c(early_stopping))
+                              normTrain$nStepAhead,
+                              epochs = 50,
+                              batch_size = 5,
+                              validation_split = 0.2,
+                              callbacks = c(early_stopping))
 #plot(history)
 predNormal_out = normalModel %>% predict(as.matrix(normTest[,1:w]))
+
 
 pred_out = NULL
 for(i in 1:length(normTest$nStepAhead)){#i=1
@@ -136,9 +120,8 @@ for(i in 1:length(normTest$nStepAhead)){#i=1
 }
 length(pred_out)
 #png("Results/Figures/21sta_nL5_forecast_r14a.png", res = 100)
-plot(normTest$nStepAhead, type="l", ylab = paste("Rolling ",w,"-day average", sep=''),
-     lwd = 2, ylim=c(min(min(pred_out),min(normTest$nStepAhead)), 
-                     max(max(pred_out),max(normTest$nStepAhead))))
+plot(normTest$nStepAhead, type="l", ylab = "Rolling 12-day average",
+     lwd = 2, ylim=c(min(pred_out), max(pred_out)))
 lines(pred_out, col=2, lwd=2)
 points(pred_out, col=2, pch=12)
 lines(predNormal_out, col=3, lwd=2)
@@ -159,22 +142,6 @@ getMAPE(normTest$nStepAhead, pred_out)
 
 getARV(normTest$nStepAhead, predNormal_out)
 getARV(normTest$nStepAhead, pred_out)
-
-l = length(countryTimeSeries)
-a = length(predNormal_out)
-nts = countryTimeSeries[(l-a):l]#plot.ts(countryTimeSeries[(l-a):l])
-plot(nts, type="l", ylab = paste("Rolling ",w,"-day average", sep=''),
-     lwd = 2, ylim=c(min(min(pred_out),min(nts)), 
-                     max(max(pred_out),max(nts))))
-lines(pred_out, col=2, lwd=2)
-points(pred_out, col=2, pch=12)
-lines(predNormal_out, col=3, lwd=2)
-points(predNormal_out, col=3, pch=12)
-legend("topleft", c("MKCD - MLP", "MLP"),
-       col=c(2,3), lty=1, lwd=3, cex = 0.9,
-       box.col = "white", inset = 0.01)
-#dev.off()
-
 
 # library(caTools)
 # library(caret)
