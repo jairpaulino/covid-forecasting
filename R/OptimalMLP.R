@@ -100,7 +100,7 @@ getModelSVM = function(dataTrain, dataTest){
   positiveTrendTrain = normTrain[which(normTrain$Class == "Positive"),]
   negativeTrendTrain = normTrain[which(normTrain$Class == "Negative"),]
   #View(noneTrendTrain); View(positiveTrendTrain); View(negativeTrendTrain)
-   
+  
   # get formula
   formula = "nStepAhead ~ "
   for(i in 1:w){
@@ -120,7 +120,7 @@ getModelSVM = function(dataTrain, dataTest){
                   , kernel = KernelFunctionsLabels[floor(nonePar$svmParameters[6])])
   
   print("modelNone: OK")
-
+  
   #nonePar$modellingTime
   # Modelo Positive
   #modelPositive = svm(formula(formula), data = positiveTrendTrain)
@@ -130,9 +130,9 @@ getModelSVM = function(dataTrain, dataTest){
                       , gamma = positivePar$svmParameters[3], degree = positivePar$svmParameters[4]
                       , coef0 = positivePar$svmParameters[5]
                       , kernel = KernelFunctionsLabels[floor(positivePar$svmParameters[6])])
-
+  
   print("modelPositive: OK")
-
+  
   #positivePar$modellingTime
   # negativeTrendTrain Negative
   #modelNegative= svm(formula(formula), data = negativeTrendTrain)
@@ -142,9 +142,9 @@ getModelSVM = function(dataTrain, dataTest){
                       , gamma = negativePar$svmParameters[3], degree = negativePar$svmParameters[4]
                       , coef0 = negativePar$svmParameters[5]
                       , kernel = KernelFunctionsLabels[floor(negativePar$svmParameters[6])])
-
+  
   print("modelNegative: OK")
-
+  
   #negativePar$modellingTime
   # Normal 
   #modelNormal = svm(formula(formula), data = normTrain)
@@ -158,7 +158,7 @@ getModelSVM = function(dataTrain, dataTest){
   #normalPar$modellingTime
   
   print("modelNormal: OK")
-
+  
   predNormal_out = predict(modelNormal, normTest[,1:w])
   predNormal_outTrain = predict(modelNormal, normTrain[,1:w])
   # MKCD - TRAIN SET

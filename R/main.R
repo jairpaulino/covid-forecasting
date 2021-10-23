@@ -19,6 +19,13 @@ library(e1071)
 source("R/linearAnalisys.R")
 source("R/Auxiliar.R")
 source("R/performanceMetrics.R")
+source("R/OptimalSVM.R")
+
+# Parallel processing 
+#library(doParallel)
+#numCores <- detectCores()
+#cl = makePSOCKcluster(numCores-1)
+#registerDoParallel(cl)
 
 # Importing data ----
 data = read.csv(file = "Data/time_series_covid19_confirmed_global.csv")#View(data)
@@ -26,7 +33,7 @@ data = data.frame(t(data))
 colnames(data) = paste(data[2,], data[1,], sep="_");# View(data)
 
 # Creating time series
-country = "Brazil" #"Brazil" #"US"
+country = "US" #"Italy" #"Brazil" #"US"
 countryAdj = paste(country, "_", sep="")
 # from Feb 01 2020
 countryTimeSeries = diff(as.numeric(data[15:length(data[[1]]),countryAdj]))
@@ -39,12 +46,12 @@ runningMeanincDia = getRunningMean(countryTimeSeries, phi)
 plot.ts(runningMeanincDia, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
 
 w = 21
-alpha = 0.1
+alpha = 0.05
 nStepAhead = 7
 
 timeSeriesnName = "runningMeanincDia"
 timeSeries = runningMeanincDia
-title = paste("Rolling ",w,"-day average", sep="")
+title = paste("Rolling ",phi,"-day average", sep="")
 trendAnalysis_df = getTrendAnalysis(timeSeries_df = timeSeries, w = w, alpha = alpha) 
 #View(trendAnalysis_df)
 #write.csv(trendAnalysis_df, paste("Results/", country, "_", timeSeriesnName, "_", w, "_", alpha,"_trendAnalysis_df.csv", sep=""))
@@ -79,12 +86,29 @@ trendAnalysisTest_df = getTrendAnalysis(timeSeries_df = test_ts,
 preProc = preProcess(trendAnalysis_df[,1:w], method=c("range"))
 normTrain = cbind(predict(preProc, trendAnalysis_df[,1:w]), trendAnalysis_df[,(w+1):length(trendAnalysis_df)])
 normTest = cbind(predict(preProc, trendAnalysisTest_df[,1:w]), trendAnalysisTest_df[,(w+1):length(trendAnalysisTest_df)])
-#View(normTrain); View(normTest)
 
-X_train = normTrain
-y_train = trendAnalysis_df$nStepAhead
-X_test = normTest
-y_test = trendAnalysisTest_df$nStepAhead
+resultSVM = getModelSVM(normTrain, normTest)
+
+resultSVM_test = data.frame(MKCD_SVM = resultSVM$MKCD_SVM_Test,
+                            SVM = resultSVM$SVM_Test)
+
+resultSVM_train = data.frame(MKCD_SVM = resultSVM$MKCD_SVM_Train,
+                            SVM = resultSVM$SVM_Train)
+
+write.csv(resultSVM_test, file = paste("Results/resultsTest_", country, "_", nStepAhead ,"sta_"
+                                     , "w-", w, "_phi-", phi, "_alpha-", alpha,".csv", sep=""), row.names = F)
+
+write.csv(resultSVM_train, file = paste("Results/resultsTrain_", country, "_", nStepAhead ,"sta_"
+                                       , "w-", w, "_phi-", phi, "_alpha-", alpha,".csv", sep=""), row.names = F)
+
+#View(resultSVM_test)
+#View(normTrain); View(normTest)
+#plot.ts(normTrain$nStepAhead); plot.ts(normTest$nStepAhead)
+
+#X_train = normTrain
+#y_train = trendAnalysis_df$nStepAhead
+#X_test = normTest
+#y_test = trendAnalysisTest_df$nStepAhead
 
 # model = keras_model_sequential()
 # model %>%

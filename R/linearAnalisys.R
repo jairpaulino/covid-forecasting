@@ -57,31 +57,21 @@ getTrendAnalysis = function(timeSeries_df, w, alpha = 0.05, nStepAhead = 14){
         trend_df$Class[i] = "Negative"
       }
     }
-    
-    
-    
-    
-    #View(trend_df)
-    
-    # png(paste("Results/linearCoef_img/cl_", i, ".png",sep = ""))
-    # plot(timeSeries_df[i:(i+w-1)],# ~ i:(i+w-1),
-    #      xlab = "Observação",
-    #      ylab = "Incidência", 
-    #      lwd = 4, pch = 19,
-    #      axes = T)
-    # abline(lm, col = alphaColor, lwd = 4)
-    # if(max(timeSeries_df[i:(i+w-1)])==0){
-    #   text(paste("lc = ", round(lm$coefficients[2], 3), sep=""),
-    #        x = (5), y = 1)
-    # }else{
-    #   text(paste("lc = ", round(lm$coefficients[2], 3), sep=""),
-    #        x = (5), y = max(max(timeSeries_df[i:(i+w-1)])))
-    # }
-    # dev.off()
   }
   return(na.omit(trend_df))
 }
 
+#' generateGraph
+#'
+#' @param matrix 
+#' @param timeSeries 
+#' @param w 
+#' @param title 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 generateGraph = function(matrix, timeSeries, w, title = "Incidence"){#i=1
   #matrix = trendAnalysis_df; timeSeries = mm14LogIncDia
   len = length(matrix$Class)
@@ -106,6 +96,15 @@ generateGraph = function(matrix, timeSeries, w, title = "Incidence"){#i=1
   #return()
 }
 
+#' getSlidingWindow
+#'
+#' @param matrix 
+#' @param w 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 getSlidingWindow =  function(matrix = trendAnalysis_df, w = 14){
   slidingWindow_df = trendAnalysis_df[,1:w]
   
