@@ -19,7 +19,7 @@ library(e1071)
 source("R/linearAnalisys.R")
 source("R/Auxiliar.R")
 source("R/performanceMetrics.R")
-source("R/OptimalSVM.R")
+source("R/OptimalSVR.R")
 
 # Parallel processing 
 #library(doParallel)
@@ -38,7 +38,30 @@ countryAdj = paste(country, "_", sep="")
 # from Feb 01 2020
 countryTimeSeries = diff(as.numeric(data[15:length(data[[1]]),countryAdj]))
 plot.ts(countryTimeSeries)
-#countryTimeSeries=ts(countryTimeSeries, frequency = 365.25, start=c(2020, 02))
+
+# Split data into train - test
+m = round(length(countryTimeSeries)*0.8, 0)
+m_n = length(countryTimeSeries)
+train_valid_ts = countryTimeSeries[1:m]; plot.ts(train_valid_ts)
+test_ts = countryTimeSeries[(m+1):m_n]; plot.ts(test_ts)
+# Split data into train - valid
+z = round(length(train_valid_ts)*0.8, 0)
+z_p = round(length(train_valid_ts), 0)
+train_ts = train_valid_ts[1:z]; plot.ts(train_ts)
+valid_ts = train_valid_ts[(z+1):z_p]; plot.ts(valid_ts)
+
+# MinMax Scaling
+normTrain = getNormalizeTS(train_ts, min=min(train_ts), max=max(train_ts))
+normValid= getNormalizeTS(valid_ts, min=min(train_ts), max=max(train_ts))
+normTest = getNormalizeTS(test_ts, min=min(train_ts), max=max(train_ts))
+#plot.ts(normTrain); plot.ts(normValid); plot.ts(normTest)
+
+complete_ts = c(train_ts, valid_ts, test_ts); plot.ts(complete_ts)
+
+parameters = getModelSVR_MKCD(normTrain, normValid, nStepAhead = 7)
+
+
+## End(Not run)
 
 # To create a new ts based on the original and phi parameter
 phi = 14
@@ -58,52 +81,41 @@ trendAnalysis_df = getTrendAnalysis(timeSeries_df = timeSeries, w = w, alpha = a
 
 #generateGraph(runningMeanincDia, timeSeries = timeSeries, w = w, title = title)
 
-# Split data
-#set.seed(2311) 
-#sample = sample.split(runningMeanincDia, SplitRatio = .70)
-#train_ts = subset(countryTimeSeries, sample == TRUE); plot.ts(train_ts)
-#test_ts  = subset(countryTimeSeries, sample == FALSE); plot.ts(test_ts)
 
-m = round(length(runningMeanincDia)*0.8, 0)
-m_n = length(runningMeanincDia)
-train_ts = runningMeanincDia[1:m]; plot.ts(train_ts)
-test_ts = runningMeanincDia[(m+1):m_n]; plot.ts(test_ts)
-complete_ts = c(train_ts, test_ts); plot.ts(complete_ts)
-
-# Create Sliding window matrix
-
-trendAnalysis_df = getTrendAnalysis(timeSeries_df = train_ts, 
-                                    w = w, 
-                                    alpha = alpha,
-                                    nStepAhead = nStepAhead) 
-#View(trendAnalysis_df)
-trendAnalysisTest_df = getTrendAnalysis(timeSeries_df = test_ts, 
-                                        w = w, 
-                                        alpha = alpha,
-                                        nStepAhead = nStepAhead)
-
-# MinMax Scaling
-preProc = preProcess(trendAnalysis_df[,1:w], method=c("range"))
-normTrain = cbind(predict(preProc, trendAnalysis_df[,1:w]), trendAnalysis_df[,(w+1):length(trendAnalysis_df)])
-normTest = cbind(predict(preProc, trendAnalysisTest_df[,1:w]), trendAnalysisTest_df[,(w+1):length(trendAnalysisTest_df)])
-
-resultSVM = getModelSVM(normTrain, normTest)
-
-resultSVM_test = data.frame(MKCD_SVM = resultSVM$MKCD_SVM_Test,
-                            SVM = resultSVM$SVM_Test)
-
-resultSVM_train = data.frame(MKCD_SVM = resultSVM$MKCD_SVM_Train,
-                            SVM = resultSVM$SVM_Train)
-
-write.csv(resultSVM_test, file = paste("Results/resultsTest_", country, "_", nStepAhead ,"sta_"
-                                     , "w-", w, "_phi-", phi, "_alpha-", alpha,".csv", sep=""), row.names = F)
-
-write.csv(resultSVM_train, file = paste("Results/resultsTrain_", country, "_", nStepAhead ,"sta_"
-                                       , "w-", w, "_phi-", phi, "_alpha-", alpha,".csv", sep=""), row.names = F)
-
-#View(resultSVM_test)
-#View(normTrain); View(normTest)
-#plot.ts(normTrain$nStepAhead); plot.ts(normTest$nStepAhead)
+# # Create Sliding window matrix
+# 
+# trendAnalysis_df = getTrendAnalysis(timeSeries_df = train_ts, 
+#                                     w = w, 
+#                                     alpha = alpha,
+#                                     nStepAhead = nStepAhead) 
+# #View(trendAnalysis_df)
+# trendAnalysisTest_df = getTrendAnalysis(timeSeries_df = test_ts, 
+#                                         w = w, 
+#                                         alpha = alpha,
+#                                         nStepAhead = nStepAhead)
+# 
+# # MinMax Scaling
+# preProc = preProcess(trendAnalysis_df[,1:w], method=c("range"))
+# normTrain = cbind(predict(preProc, trendAnalysis_df[,1:w]), trendAnalysis_df[,(w+1):length(trendAnalysis_df)])
+# normTest = cbind(predict(preProc, trendAnalysisTest_df[,1:w]), trendAnalysisTest_df[,(w+1):length(trendAnalysisTest_df)])
+# 
+# resultSVM = getModelSVM(normTrain, normTest)
+# 
+# resultSVM_test = data.frame(MKCD_SVM = resultSVM$MKCD_SVM_Test,
+#                             SVM = resultSVM$SVM_Test)
+# 
+# resultSVM_train = data.frame(MKCD_SVM = resultSVM$MKCD_SVM_Train,
+#                             SVM = resultSVM$SVM_Train)
+# 
+# write.csv(resultSVM_test, file = paste("Results/resultsTest_", country, "_", nStepAhead ,"sta_"
+#                                      , "w-", w, "_phi-", phi, "_alpha-", alpha,".csv", sep=""), row.names = F)
+# 
+# write.csv(resultSVM_train, file = paste("Results/resultsTrain_", country, "_", nStepAhead ,"sta_"
+#                                        , "w-", w, "_phi-", phi, "_alpha-", alpha,".csv", sep=""), row.names = F)
+# 
+# #View(resultSVM_test)
+# #View(normTrain); View(normTest)
+# #plot.ts(normTrain$nStepAhead); plot.ts(normTest$nStepAhead)
 
 #X_train = normTrain
 #y_train = trendAnalysis_df$nStepAhead

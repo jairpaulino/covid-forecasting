@@ -1,65 +1,97 @@
 KernelFunctionsLabels = c("linear", "polynomial", "radial", "sigmoid")
 pGSA = list(); pGSA$max.call = 10000; pGSA$max.time = 20
-pGSA$maxit = 1000; pGSA$nb.stop.improvement = 5; 
-pGSA$temperature = 500
+pGSA$maxit = 10; pGSA$nb.stop.improvement = 5; 
+pGSA$temperature = 10
 
-getSVMPar_GenSA = function(data){
-  #data = negativeTrendTrain
-  set.seed(123); #definir semente 
-  #n = length(data) 
+getSVR_MKCD_par = function(dataTrain, dataValid, class){
+  #data = normTrain; nStepAhead = 7
   
-  fitnessSVM = function(parameters){
-    #data = noneTrendTrain; parameters = c(10, 10, 10, 1, 0.5, 1)
+  set.seed(123)
+
+  fitnessSVR = function(parameters){
+    #data = normTrain; parameters = c(15, 15, 0.03, 10, 10, 10, 1, 0.5, 1)
+    #class = "None"
     
+    phi = floor(parameters[1])
+     
+    runningMeanincDia = getRunningMean(countryTimeSeries, phi)
+    #plot.ts(runningMeanincDia, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
     
+    w = floor(parameters[2])
+    alpha = parameters[3]
     
+    timeSeriesnName = "runningMeanincDia"
+    timeSeries = runningMeanincDia
+    title = paste("Rolling ",phi,"-day average", sep="")
+    trendAnalysis_df = getTrendAnalysis(timeSeries_df = timeSeries, w = w, alpha = alpha) 
+    #View(trendAnalysis_df)
+    #write.csv(trendAnalysis_df, paste("Results/", country, "_", timeSeriesnName, "_", w, "_", alpha,"_trendAnalysis_df.csv", sep=""))
     
-    m = round(length(data[[1]])*0.8, 0)
-    m_n = length(data[[1]]) 
-    train_df = data[1:m,]; 
-    valid_df = data[(m+1):m_n,]; 
-    complete_ts = c(train_df, valid_df); 
+    #m = round(length(runningMeanincDia)*0.8, 0)
+    #m_n = length(runningMeanincDia)
+    #train_ts = runningMeanincDia[1:m]; plot.ts(train_ts)
+    
+    # Create Sliding window matrix
+    trainTrendAnalysis_df = getTrendAnalysis(timeSeries_df = dataTrain, 
+                                        w = w, 
+                                        alpha = alpha,
+                                        nStepAhead = nStepAhead)
+    
+    validTrendAnalysis_df = getTrendAnalysis(timeSeries_df = dataValid, 
+                                        w = w, 
+                                        alpha = alpha,
+                                        nStepAhead = nStepAhead) 
+
+    dataTrain = trainTrendAnalysis_df[which(trainTrendAnalysis_df$Class == class),]
+    dataValid = validTrendAnalysis_df[which(validTrendAnalysis_df$Class == class),]
     
     formula = "nStepAhead ~ "
     for(i in 1:w){
       if(i == 1){
-        formula = paste(formula, paste(colnames(data)[i], sep=""), sep="") 
+        formula = paste(formula, paste(colnames(dataTrain)[i], sep=""), sep="") 
       }else{
-        formula = paste(formula, paste(" + ", colnames(data)[i], sep=""), sep="") 
+        formula = paste(formula, paste(" + ", colnames(dataTrain)[i], sep=""), sep="") 
       }
     }
     
     svmParameters = list()
-    svmParameters$cost = (parameters[1])#integer in [1, 15]
-    svmParameters$epsilon = (parameters[2])#integer in [1, 15]
-    svmParameters$gamma = (parameters[3])#integer in [1, 15]
-    svmParameters$degree = (parameters[4])#integer in [1, 15]
-    svmParameters$coef0 = (parameters[5])#integer in [1, 15]
-    index = floor(parameters[6])#in [-.5+1e-10, 5.5-1e-10]
+    svmParameters$phi = (parameters[1])
+    svmParameters$w = (parameters[2])
+    svmParameters$alpha = (parameters[3])
+    svmParameters$cost = (parameters[4])#integer in [1, 15]
+    svmParameters$epsilon = (parameters[5])#integer in [1, 15]
+    svmParameters$gamma = (parameters[6])#integer in [1, 15]
+    svmParameters$degree = (parameters[7])#integer in [1, 15]
+    svmParameters$coef0 = (parameters[8])#integer in [1, 15]
+    index = floor(parameters[9])#in [-.5+1e-10, 5.5-1e-10]
     svmParameters$KernelFunction = KernelFunctionsLabels[index]
     
-    modelSVM = svm(formula(formula)
-                   , data = train_df
-                   , cost = svmParameters[1]
-                   , epsilon = svmParameters[2]
-                   , gamma = svmParameters[3]
-                   , degree = svmParameters[4]
-                   , coef0 = svmParameters[5]
+    modelSVM = svm(formula = formula(formula)
+                   , data = dataTrain
+                   , cost = svmParameters[4]
+                   , epsilon = svmParameters[5]
+                   , gamma = svmParameters[6]
+                   , degree = svmParameters[7]
+                   , coef0 = svmParameters[8]
                    , kernel = svmParameters$KernelFunction)
     
-    predSVM = predict(modelSVM, valid_df)
-    MSE = getMSE(target = valid_df$nStepAhead, forecast = predSVM)
+    
+    predSVM = predict(modelSVM, dataValid)
+    MSE = getMSE(target = dataValid$nStepAhead, forecast = predSVM)
     return(MSE)
   }
-  
+
+  min_phi = 7; max_phi = 30+1-1e-5
+  min_w = 7; max_w = 30+1-1e-5
+  min_alpha = 0.01; max_alpha  = 0.2
   min_cost = 1e-5; max_cost = 1e+2
   min_epsilon = 1e-5; max_epsilon = 1
   min_gamma = 1e-5; max_gamma = 1e+4
   min_degree = 1; max_degree = 5
   min_coef0 = 0; max_coef0 = 1e+1
   max_KernelFunctions = (length(KernelFunctionsLabels)+1-1e-5)
-  lowers = c(min_cost, min_epsilon, min_gamma, min_degree, min_coef0)
-  uppers = c(max_cost, max_epsilon, max_gamma, max_degree, max_coef0)
+  lowers = c(min_phi, min_w, min_alpha, min_cost,  min_epsilon, min_gamma, min_degree, min_coef0)
+  uppers = c(max_phi, max_w, max_alpha, max_cost, max_epsilon, max_gamma, max_degree, max_coef0)
   lowers = c(lowers, 1)
   uppers = c(uppers, max_KernelFunctions)
   tol <- 1e-3
@@ -67,7 +99,7 @@ getSVMPar_GenSA = function(data){
   out = 
     tryCatch({
       expr = GenSA(lower = lowers, upper = uppers
-                   , fn = fitnessSVM 
+                   , fn = fitnessSVR
                    , par = (lowers+uppers)/2
                    , control=list(max.call = pGSA$max.call
                                   , max.time = pGSA$max.time
@@ -98,33 +130,18 @@ getSVMPar_GenSA = function(data){
   
 }
 
-getModelSVM = function(dataTrain, dataTest){
+getModelSVR_MKCD = function(dataTrain, dataValid, nStepAhead = 7){
+  #dataTrain = normTrain; dataValid = normValid,  nStepAhead = 7
   
-  noneTrendTrain = normTrain[which(normTrain$Class == "None"),]
-  positiveTrendTrain = normTrain[which(normTrain$Class == "Positive"),]
-  negativeTrendTrain = normTrain[which(normTrain$Class == "Negative"),]
-  #View(noneTrendTrain); View(positiveTrendTrain); View(negativeTrendTrain)
-   
-  # get formula
-  formula = "nStepAhead ~ "
-  for(i in 1:w){
-    if(i == 1){
-      formula = paste(formula, paste(colnames(noneTrendTrain)[i], sep=""), sep="") 
-    }else{
-      formula = paste(formula, paste(" + ", colnames(noneTrendTrain)[i], sep=""), sep="") 
-    }
-  }
+  nonePar = getSVR_MKCD_par(dataTrain, dataValid, class = "None") #nonePar$svmParameters
+  modelNone = svm(formula(formula), data = dataTrain
+                  , cost = nonePar$svmParameters[4], epsilon = nonePar$svmParameters[5]
+                  , gamma = nonePar$svmParameters[6], degree = nonePar$svmParameters[7]
+                  , coef0 = nonePar$svmParameters[8]
+                  , kernel = KernelFunctionsLabels[floor(nonePar$svmParameters[9])])
   
-  # Modelo NONE
-  nonePar = getSVMPar_GenSA(noneTrendTrain) #nonePar$svmParameters
-  modelNone = svm(formula(formula), data = noneTrendTrain
-                  , cost = nonePar$svmParameters[1], epsilon = nonePar$svmParameters[2]
-                  , gamma = nonePar$svmParameters[3], degree = nonePar$svmParameters[4]
-                  , coef0 = nonePar$svmParameters[5]
-                  , kernel = KernelFunctionsLabels[floor(nonePar$svmParameters[6])])
+  print("modelNone MKCD: OK")
   
-  print("modelNone: OK")
-
   #nonePar$modellingTime
   # Modelo Positive
   #modelPositive = svm(formula(formula), data = positiveTrendTrain)
@@ -134,9 +151,9 @@ getModelSVM = function(dataTrain, dataTest){
                       , gamma = positivePar$svmParameters[3], degree = positivePar$svmParameters[4]
                       , coef0 = positivePar$svmParameters[5]
                       , kernel = KernelFunctionsLabels[floor(positivePar$svmParameters[6])])
-
+  
   print("modelPositive: OK")
-
+  
   #positivePar$modellingTime
   # negativeTrendTrain Negative
   #modelNegative= svm(formula(formula), data = negativeTrendTrain)
@@ -146,9 +163,9 @@ getModelSVM = function(dataTrain, dataTest){
                       , gamma = negativePar$svmParameters[3], degree = negativePar$svmParameters[4]
                       , coef0 = negativePar$svmParameters[5]
                       , kernel = KernelFunctionsLabels[floor(negativePar$svmParameters[6])])
-
+  
   print("modelNegative: OK")
-
+  
   #negativePar$modellingTime
   # Normal 
   #modelNormal = svm(formula(formula), data = normTrain)
@@ -162,7 +179,7 @@ getModelSVM = function(dataTrain, dataTest){
   #normalPar$modellingTime
   
   print("modelNormal: OK")
-
+  
   predNormal_out = predict(modelNormal, normTest[,1:w])
   predNormal_outTrain = predict(modelNormal, normTrain[,1:w])
   # MKCD - TRAIN SET
