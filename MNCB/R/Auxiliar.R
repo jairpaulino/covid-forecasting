@@ -1,5 +1,5 @@
 get_matrix_mk_all = function(time_series_train, time_series_valid, phi, w
-                        , alpha, nStepAhead=1){
+                        , alpha=0.05, nStepAhead=1){
   #phi = 7; w = 7; alpha = 0.1; nStepAhead=1
   #time_series_train = normTrain; time_series_valid = normValid
   
@@ -45,20 +45,21 @@ get_matrix_mk_all = function(time_series_train, time_series_valid, phi, w
 #' @examplesa ts = 1:100; n = 3; getRunningMean(ts, n = 3)
 
 getFinalData = function(time_series_train, time_series_test, phi, w
-                        , alpha, nStepAhead, Class){
-  #phi = 7; w = 7; alpha = 0.1
+                        , alpha=0.05, nStepAhead, Class){
+  #time_series_train = dataTrain; time_series_test = dataValid
+  #phi = 7; w = 14; alpha = 0.05; Class = 'Positive'
   
   runningMean_train = getRunningMean(time_series_train, phi)
   runningMean_test = getRunningMean(time_series_test, phi)
-  #plot.ts(runningMeanincDia, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
+  #plot.ts(runningMean_train, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
   
-  trendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_train
-                                      , w = w
-                                      , alpha = alpha) 
+  #trendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_train
+  #                                    , w = w
+  #                                    , alpha = alpha) 
   #View(trendAnalysis_df)
   
   # Create Sliding window matrix
-  trainTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_test, 
+  trainTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_train, 
                                            w = w, 
                                            alpha = alpha,
                                            nStepAhead = nStepAhead)
@@ -76,6 +77,34 @@ getFinalData = function(time_series_train, time_series_test, phi, w
   data$dataTest = dataTest
   return(data)
 }
+getFinalDataAll = function(time_series_train, time_series_test, phi, w
+                        , alpha=0.05, nStepAhead){
+  #time_series_train = dataTrain; time_series_test = dataValid
+  #phi = 7; w = 14; alpha = 0.05; Class = 'Positive'
+  
+  runningMean_train = getRunningMean(time_series_train, phi)
+  runningMean_test = getRunningMean(time_series_test, phi)
+  #plot.ts(runningMean_train, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
+
+  trainTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_train, 
+                                           w = w, 
+                                           alpha = alpha,
+                                           nStepAhead = nStepAhead)
+  
+  validTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = time_series_test, 
+                                           w = w, 
+                                           alpha = alpha,
+                                           nStepAhead = nStepAhead) 
+  
+  dataTrain = trainTrendAnalysis_df
+  dataTest = validTrendAnalysis_df
+  
+  data = NULL
+  data$dataTrain = dataTrain
+  data$dataTest = dataTest
+  return(data)
+}
+
 
 #' getRunningMean
 #' 

@@ -18,6 +18,7 @@ source("R/linearAnalisys.R")
 source("R/Auxiliar.R")
 source("R/performanceMetrics.R")
 source("R/OptimalSVR.R")
+source('R/MkParameters.R')
 
 # Importing data ----
 # Argentina, Brazil, China, France, Germany
@@ -43,9 +44,12 @@ normValid= getNormalizeTS(valid_ts, min=min(train_ts), max=max(train_ts))
 normTest = getNormalizeTS(test_ts, min=min(train_ts), max=max(train_ts))
 #plot.ts(normTrain); plot.ts(normValid); plot.ts(normTest)
 
-mkParameters = 
-
-results = getModelSVR_MKCD(normTrain, normValid, nStepAhead = 1)
+#mkParameters = get_mk_parameters(normTrain, w_max = 10, phi_max = 10)
+mkParameters = list(7, 14)
+results = getModelSVR_MKCD(dataTrain =normTrain, dataValid = normValid
+                           , w = as.numeric(mkParameters[1])
+                           , phi = as.numeric(mkParameters[2])
+                           , nStepAhead = 1, alpha = 0.05)
 
 
 #write.csv2(incDia, paste("Data/Country/", country, ".csv", sep="")

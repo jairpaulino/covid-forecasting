@@ -27,13 +27,13 @@ get_mk_parameters = function(normTrain, w_max=20, phi_max=20, alpha = 0.05){
       if(mean_POCID > max_POCID){
         max_POCID = mean_POCID
         print(paste('w = ', w, ' phi = ', phi
-                    , ' POCID = ', round(max_POCID)))
+                    , ' POCID = ', round(max_POCID),2))
         w_best = i; phi_best = j
       }else{print(paste('w = ', w, ' phi = ', phi, ' --'))}
     }
   }#
   end = proc.time() - begin
-  return(list('w' = w, 'phi' = phi
+  return(list('w' = w_best, 'phi' = phi_best
               , 'POCID' = max_POCID, 'Time' = end[3]))
 }
 
