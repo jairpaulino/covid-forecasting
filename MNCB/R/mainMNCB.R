@@ -46,7 +46,8 @@ normTest = getNormalizeTS(test_ts, min=min(train_ts), max=max(train_ts))
 
 #mkParameters = get_mk_parameters(normTrain, w_max = 10, phi_max = 10)
 mkParameters = list(7, 14)
-results = getModelSVR_MKCD(dataTrain =normTrain, dataValid = normValid
+results = getModelSVR_MKCD(dataTrain = normTrain, dataValid = normValid
+                           , dataTest = normTest
                            , w = as.numeric(mkParameters[1])
                            , phi = as.numeric(mkParameters[2])
                            , nStepAhead = 1, alpha = 0.05)
