@@ -1,7 +1,7 @@
 KernelFunctionsLabels = c("linear", "polynomial", "radial", "sigmoid")
-pGSA = list(); pGSA$max.call = 10000; pGSA$max.time = 20
-pGSA$maxit = 10; pGSA$nb.stop.improvement = 5; 
-pGSA$temperature = 10
+pGSA = list(); pGSA$max.call = 1; pGSA$max.time = 20
+pGSA$maxit = 1; pGSA$nb.stop.improvement = 1; 
+pGSA$temperature = 1
 
 getSVMPar_GenSA = function(dataTrain, dataValid, nStepAhead=1
                            , alpha=0.05){
@@ -262,9 +262,9 @@ getSVR_MKCD_par = function(dataTrain, dataValid, w, phi
   return(optimal)
   }
 
-getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi, 
+getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi
                             , nStepAhead=1, alpha=0.05){
-  #dataTrain = normTrain; dataValid = normValid;  
+  #dataTrain = normTrain; dataValid = normValid; dataTest = normTest 
   #w = 7; phi = 14; alpha = 0.05; nStepAhead = 1
 
   nonePar = getSVR_MKCD_par(dataTrain, dataValid, w = w, phi = phi
@@ -278,17 +278,8 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi,
   
   dataTrain_final = finalData$dataTrain
   dataValid_final = finalData$dataTest
-  
-  formula_svm = "nStepAhead ~ "
-  for(i in 1:w){#i=1
-    if(i == 1){
-      formula_svm = paste(formula_svm, paste(colnames(dataTrain_final)[i], sep=""), sep="") 
-    }else{
-      formula_svm = paste(formula_svm, paste(" + ", colnames(dataTrain_final)[i], sep=""), sep="") 
-    }
-  }
-  
-  print(paste('formula: ', formula_svm, sep=""))
+  formula_svm = get_formula(dataTrain_final, w=w)
+  #print(paste('formula: ', formula_svm, sep=""))
   
   modelNone = svm(formula(formula_svm), data = dataTrain_final
                   , cost = nonePar$svmParameters[1], epsilon = nonePar$svmParameters[2]
@@ -311,18 +302,8 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi,
   
   dataTrain_final = finalData$dataTrain
   dataValid_final = finalData$dataTest
-  
-  formula_svm = "nStepAhead ~ "
-  for(i in 1:w){#i=1
-    if(i == 1){
-      formula_svm = paste(formula_svm, paste(colnames(dataTrain_final)[i], sep=""), sep="") 
-    }else{
-      formula_svm = paste(formula_svm, paste(" + ", colnames(dataTrain_final)[i], sep=""), sep="") 
-    }
-  }
-  
-  print(paste('formula: ', formula_svm, sep=""))
-  
+  formula_svm = get_formula(dataTrain_final, w=w)
+
   modelPositive = svm(formula(formula_svm), data = dataTrain_final
                   , cost = positivePar$svmParameters[1], epsilon = positivePar$svmParameters[2]
                   , gamma = positivePar$svmParameters[3], degree = positivePar$svmParameters[4]
@@ -330,7 +311,7 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi,
                   , kernel = KernelFunctionsLabels[floor(positivePar$svmParameters[6])])
   #plot.ts(dataTrain_final$nStepAhead); lines(modelPositive$fitted, col=2)
   print("modelPositive MKCD: OK")
-  #length(dataTrain_final$nStepAhead); length(modelPositive$fitted)
+
   # Model Negative
   #modelNegative= svm(formula(formula), data = negativeTrendTrain)
   negativePar = getSVR_MKCD_par(dataTrain, dataValid, w = w, phi = phi
@@ -345,18 +326,8 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi,
   
   dataTrain_final = finalData$dataTrain
   dataValid_final = finalData$dataTest
-  
-  formula_svm = "nStepAhead ~ "
-  for(i in 1:w){#i=2
-    if(i == 1){
-      formula_svm = paste(formula_svm, paste(colnames(dataTrain_final)[i], sep=""), sep="") 
-    }else{
-      formula_svm = paste(formula_svm, paste(" + ", colnames(dataTrain_final)[i], sep=""), sep="") 
-    }
-  }
-  
-  print(paste('formula: ', formula_svm, sep=""))
-  
+  formula_svm = get_formula(dataTrain_final, w=w)
+
   modelNegative = svm(formula(formula_svm), data = dataTrain_final
                   , cost = negativePar$svmParameters[1], epsilon = negativePar$svmParameters[2]
                   , gamma = negativePar$svmParameters[3], degree = negativePar$svmParameters[4]
@@ -365,147 +336,61 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi,
   #plot.ts(dataTrain_final$nStepAhead); lines(modelNegative$fitted, col=2)
   print("modelNegative MKCD: OK")
   
-  # Model Normal 
-  normalPar = getSVMPar_GenSA(dataTrain, dataValid, nStepAhead) #View(normTrain)
-  finalData  = getFinalDataAll(time_series_train = dataTrain
-                                  , time_series_test = dataValid
-                                  , phi = phi
-                                  , w = w
-                                  , alpha = alpha
-                                  , nStepAhead = 1)
+  # MKCD ----
   
-  dataTrain_final = finalData$dataTrain
-  dataValid_final = finalData$dataTest
-  
-  formula_svm = "nStepAhead ~ "
-  for(i in 1:w){#i=2
-    if(i == 1){
-      formula_svm = paste(formula_svm, paste(colnames(dataTrain_final)[i], sep=""), sep="") 
-    }else{
-      formula_svm = paste(formula_svm, paste(" + ", colnames(dataTrain_final)[i], sep=""), sep="") 
-    }
-  }
-  
-  modelNormal = svm(formula(formula_svm), data = dataTrain_final
-                    , cost = as.numeric(normalPar$svmParameters[1])
-                    , epsilon = as.numeric(normalPar$svmParameters[2])
-                    , gamma = as.numeric(normalPar$svmParameters[3])
-                    , degree = as.numeric(normalPar$svmParameters[4])
-                    , coef0 = as.numeric(normalPar$svmParameters[5])
-                    , kernel = KernelFunctionsLabels[floor(normalPar$svmParameters[6])])
-  #plot.ts(dataTrain_final$nStepAhead); lines(modelNormal$fitted, col=2)
-  print("modelNormal: OK")
-  
-  print('ATÉ AQUI FOI')
-  
-  predNormal_out = predict(modelNormal, dataValid_final)
-  predNormal_outTrain = predict(modelNormal, dataTrain_final)
-  
-  #wFinal = floor(max(nonePar$svmParameters[2]
-  #                   , positivePar$svmParameters[2]
-  #                   , negativePar$svmParameters[2]))
-  # 
-   
-  finalData  = getFinalDataAll(time_series_train = dataTrain
-                               , time_series_test = dataValid
-                               , phi = phi
-                               , w = w
+  dataTrain_all = c(dataTrain, dataValid)
+  finalData  = getFinalDataAll(time_series_train = dataTrain_all
+                               , time_series_test = dataTest
+                               , phi = phi, w = w
                                , alpha = alpha
-                               , nStepAhead = 1)
-  # MKCD - TRAIN SET
+                               , nStepAhead = nStepAhead)
+  dataTrain_final = finalData$dataTrain
+  dataTest_final = finalData$dataTest
+  
+  # MKCD - TRAIN SET 
   pred_out_Train = NULL
   for(i in 1:length(finalData$dataTrain$nStepAhead)){#i=1
-    if(finalData$dataTrain$Class[i] == "None"){
-      pred_out_Train[i] = modelNone %>% predict(as.matrix(finalData$dataTrain[i,1:w]))
+    if(dataTrain_final$Class[i] == "None"){
+      pred_out_Train[i] = modelNone %>% predict(as.matrix(dataTrain_final[i,1:w]))
     }else{
-      if(finalData$dataTrain$Class[i] == "Positive"){
-        pred_out_Train[i] = modelPositive %>% predict(as.matrix(finalData$dataTrain[i,1:w]))
+      if(dataTrain_final$Class[i] == "Positive"){
+        pred_out_Train[i] = modelPositive %>% predict(as.matrix(dataTrain_final[i,1:w]))
       }else{
-        pred_out_Train[i] = modelNegative %>% predict(as.matrix(finalData$dataTrain[i,1:w]))
+        pred_out_Train[i] = modelNegative %>% predict(as.matrix(dataTrain_final[i,1:w]))
       }
     }
-  } #length(pred_out)
-  # pred_out_Train = NULL
-  # for(i in 1:length(normTrain$nStepAhead)){#i=1
-  #   if(normTrain$Class[i] == "None"){
-  #     pred_out_Train[i] = modelNone %>% predict(as.matrix(normTrain[i,1:w]))
-  #   }else{
-  #     if(normTrain$Class[i] == "Positive"){
-  #       pred_out_Train[i] = modelPositive %>% predict(as.matrix(normTrain[i,1:w]))
-  #     }else{
-  #       pred_out_Train[i] = modelNegative %>% predict(as.matrix(normTrain[i,1:w]))
-  #     }
-  #   }
-  # } #length(pred_out)
-  # 
+  } #length(pred_out_Train)
+  plot.ts(dataTrain_final$nStepAhead); 
+  lines(modelNone %>% predict(as.matrix(dataTrain_final[,1:w])), col=3, lwd=2)
+  lines(modelPositive %>% predict(as.matrix(dataTrain_final[,1:w])), col=4, lwd=2)
+  lines(modelNegative %>% predict(as.matrix(dataTrain_final[,1:w])), col=5, lwd=2)
+  lines(pred_out_Train, col=2, lwd=2)
+  #length(dataTrain_final$nStepAhead); length(dataTrain_final$nStepAhead)
   
   # MKCD - TEST SET
-  pred_out = NULL
-  for(i in 1:length(finalData$dataTrain$nStepAhead)){#i=1
-    if(finalData$dataTrain$Class[i] == "None"){
-      pred_out_Train[i] = modelNone %>% predict(as.matrix(finalData$dataTrain[i,1:w]))
+  pred_out_Test = NULL
+  for(i in 1:length(dataTest_final$nStepAhead)){#i=1
+    if(dataTest_final$Class[i] == "None"){
+      pred_out_Test[i] = modelNone %>% predict(as.matrix(dataTest_final[i,1:w]))
     }else{
-      if(finalData$dataTrain$Class[i] == "Positive"){
-        pred_out_Train[i] = modelPositive %>% predict(as.matrix(finalData$dataTrain[i,1:w]))
+      if(dataTest_final$Class[i] == "Positive"){
+        pred_out_Test[i] = modelPositive %>% predict(as.matrix(dataTest_final[i,1:w]))
       }else{
-        pred_out_Train[i] = modelNegative %>% predict(as.matrix(finalData$dataTrain[i,1:w]))
+        pred_out_Test[i] = modelNegative %>% predict(as.matrix(dataTest_final[i,1:w]))
       }
     }
   } #length(pred_out)
+  plot.ts(dataTest_final$nStepAhead); 
+  lines(pred_out_Test, col=2, lwd=3)  
+  lines(modelNone %>% predict(as.matrix(finalData$dataTest[,1:w])), col=3, lwd=2)
+  lines(modelPositive %>% predict(as.matrix(finalData$dataTest[,1:w])), col=4, lwd=2)
+  lines(modelNegative %>% predict(as.matrix(finalData$dataTest[,1:w])), col=5, lwd=2)
   
-
-  plot(finalData$dataTrain$nStepAhead, type="l", ylab = paste("Rolling ",phi,"-day average", sep=''),
-       lwd = 3)#, ylim=c(min(min(predNormal_out),min(normTest$nStepAhead),min(pred_out)), 
-  #       1.1*max(max(predNormal_out),max(normTest$nStepAhead),max(pred_out))))
-  lines(pred_out_Train, col=2, lwd=2)
-  points(pred_out_Train, col=2, pch=15)
-  lines(predNormal_out, col=3, lwd=2)
-  points(predNormal_out, col=3, pch=16)
-  legend("topleft", c("MKCD - SVM", "SVM"),
-         col=c(2,3),  pch=c(15,16), lty=1, lwd=3, cex = 0.9,
-         box.col = "white", inset = 0.01, horiz = T)
-  dev.off()
-  
-  
-  
-  #png(paste("Results/Figures/", country, "_", nStepAhead ,"sta_"
-  #          , "w-", w, "_phi-", phi, "_alpha-", alpha, ".png", sep=""), res = 100, width = 800, height = 600)
-  plot(finalData_train$dataTest$nStepAhead, type="l", ylab = paste("Rolling ",phi,"-day average", sep=''),
-       lwd = 3)#, ylim=c(min(min(predNormal_out),min(normTest$nStepAhead),min(pred_out)), 
-                #       1.1*max(max(predNormal_out),max(normTest$nStepAhead),max(pred_out))))
-  lines(pred_out, col=2, lwd=2)
-  points(pred_out, col=2, pch=15)
-  lines(predNormal_out, col=3, lwd=2)
-  points(predNormal_out, col=3, pch=16)
-  legend("topleft", c("MKCD - SVM", "SVM"),
-         col=c(2,3),  pch=c(15,16), lty=1, lwd=3, cex = 0.9,
-         box.col = "white", inset = 0.01, horiz = T)
-  dev.off()
-  
-  metricsTable = as.data.frame(matrix(ncol=2, nrow=4))
-  colnames(metricsTable) = c("MKCD_SVM", "SVM")
-  rownames(metricsTable) = c("RMSE", "MAE", "MAPE", "ARV")
-  metricsTable$SVM[1] = getRMSE(normTest$nStepAhead, predNormal_out) #Normal
-  metricsTable$MKCD_SVM[1] = getRMSE(normTest$nStepAhead, pred_out)
-  metricsTable$SVM[2] = getMAE(normTest$nStepAhead, predNormal_out) #Normal
-  metricsTable$MKCD_SVM[2] = getMAE(normTest$nStepAhead, pred_out)
-  metricsTable$SVM[3] = getMAPE(normTest$nStepAhead, predNormal_out) #Normal
-  metricsTable$MKCD_SVM[3] = getMAPE(normTest$nStepAhead, pred_out)
-  metricsTable$SVM[4] = getARV(normTest$nStepAhead, predNormal_out) #Normal
-  metricsTable$MKCD_SVM[4] = getARV(normTest$nStepAhead, pred_out)
-  options(scipen=999)
-  print(round(metricsTable,3))
-  
-  write.csv(metricsTable, file = paste("Results/", country, "_", nStepAhead ,"sta_"
-                                       , "w-", w, "_phi-", phi, "_alpha-", alpha,".csv", sep=""))
-  
-  return(list("MKCD_SVM_Test" = pred_out, "SVM_Test" = predNormal_out
-              , "MKCD_SVM_Train" = pred_out_Train, "SVM_Train" = predNormal_outTrain
-              , "Target_Test" = normTest$nStepAhead, "Target_Train" = normTrain$nStepAhead))
+  rtr = list()
+  rtr$MKCD_SVM_Train = pred_out_Train
+  rtr$MKCD_SVM_Test = pred_out_Test
+  rtr$Target_Train = dataTrain_final$nStepAhead
+  rtr$Target_Test = dataTest_final$nStepAhead
+  return(rtr)
 }
-
-
-
-
-#model = getSVMmodel_GenSA(noneTrendTrain)
 
