@@ -1,10 +1,11 @@
 KernelFunctionsLabels = c("linear", "polynomial", "radial", "sigmoid")
-pGSA = list(); pGSA$max.call = 1; pGSA$max.time = 20
-pGSA$maxit = 1; pGSA$nb.stop.improvement = 1; 
-pGSA$temperature = 1
+pGSA = list(); pGSA$max.call = 100; pGSA$max.time = 300
+pGSA$maxit = 100; pGSA$nb.stop.improvement = 3; 
+pGSA$temperature = 100
 
+# Get SVM parameters based on GenSA 
 getSVMPar_GenSA = function(dataTrain, dataValid, nStepAhead=1
-                           , alpha=0.05){
+                           , alpha=0.05, phi, w){
   #dataTrain = normTrain; dataValid = normValid; nStepAhead = 1
   
   set.seed(123)
@@ -13,6 +14,11 @@ getSVMPar_GenSA = function(dataTrain, dataValid, nStepAhead=1
     #data = normTrain; parameters = c(15, 15, 0.03, 10, 10, 10, 1, 0.5, 1)
     #nStepAhead = floor(parameters[10])
     #phi = floor(parameters[1])
+
+    print("Gensa -----")
+    print(paste('Cost: ', round(parameters[1],6), ' -- Epsilon: ', round(parameters[2],6)
+                , ' -- Gamma: ', round(parameters[3],6), ' -- Degree: ', round(parameters[4],6)
+                , ' -- Coef0: ', round(parameters[5],6), ' -- kernel: ', KernelFunctionsLabels[floor(parameters[6])], sep=""));
     
     runningMeanincDia = getRunningMean(dataTrain, phi)
     #plot.ts(runningMeanincDia, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
@@ -68,12 +74,13 @@ getSVMPar_GenSA = function(dataTrain, dataValid, nStepAhead=1
     dataValid_fit_model = validTrendAnalysis_df[,c(1:w,w+6)]
     predSVM_valid = predict(modelSVM, dataValid_fit_model)
     MSE = getMSE(target = dataValid_fit_model$nStepAhead, forecast = predSVM_valid)
+    print(paste0('MSE: ', MSE))
     return(MSE)
   }
-
-  min_cost = 1e-5; max_cost = 1e+2
-  min_epsilon = 1e-5; max_epsilon = 1
-  min_gamma = 1e-5; max_gamma = 1e+4
+  
+  min_cost = 1e-1; max_cost = 1e+4
+  min_epsilon = 1e-3; max_epsilon = 1e-1
+  min_gamma = 1e-5; max_gamma = 1
   min_degree = 1; max_degree = 5
   min_coef0 = 0; max_coef0 = 1e+1
   max_KernelFunctions = (length(KernelFunctionsLabels)+1-1e-5)
@@ -88,14 +95,16 @@ getSVMPar_GenSA = function(dataTrain, dataValid, nStepAhead=1
       expr = GenSA(lower = lowers, upper = uppers
                    , fn = fitnessSVR
                    , par = (lowers+uppers)/2
-                   , control=list(max.call = pGSA$max.call
+                   , control=list( temperature = pGSA$temperature
+                                  , max.call = pGSA$max.call
                                   , max.time = pGSA$max.time
-                                  , maxit = pGSA$maxit
+                                  #, maxit = pGSA$maxit
                                   , verbose = FALSE 
                                   , smooth = FALSE
-                                  , seed = 123
+                                  , seed = -123
                                   , nb.stop.improvement = pGSA$nb.stop.improvement
-                                  , temperature = pGSA$temperature))
+                                  )
+                   )
     }, 
     error = function(e){
       message(paste("Error in GenSA.", e)); 
@@ -112,9 +121,56 @@ getSVMPar_GenSA = function(dataTrain, dataValid, nStepAhead=1
   optimal$GenSA_output = out
   optimal$svmParameters = out$par
   return(optimal)
-  return(optimal)
 }
 
+getModelSVR_Normal = function(dataTrain, dataValid, dataTest, w, phi
+                              , nStepAhead=1, alpha=0.05){
+  
+  
+  sink(file = paste("modelNormal_", country, "_SVM_opt.txt", sep="")
+       , append = FALSE, type = "output", split = FALSE)
+  
+  normalPar = getSVMPar_GenSA(dataTrain, dataValid, nStepAhead, phi=phi, w=w) #View(normTrain)
+  dataTrain_all = c(dataTrain, dataValid)
+  finalData = getFinalDataAll(time_series_train = dataTrain_all
+                               , time_series_test = dataTest
+                               , phi = phi
+                               , w = w
+                               , alpha = alpha
+                               , nStepAhead = 1)
+  
+  dataTrain_final = finalData$dataTrain
+  dataTest_final = finalData$dataTest
+  
+  formula_svm = get_formula(dataTrain_final, w=w)
+  modelNormal = svm(formula(formula_svm), data = dataTrain_final
+                    , cost = as.numeric(normalPar$svmParameters[1])
+                    , epsilon = as.numeric(normalPar$svmParameters[2])
+                    , gamma = as.numeric(normalPar$svmParameters[3])
+                    , degree = as.numeric(normalPar$svmParameters[4])
+                    , coef0 = as.numeric(normalPar$svmParameters[5])
+                    , kernel = KernelFunctionsLabels[floor(normalPar$svmParameters[6])])
+  print("-------------------- modelNormal MKCD --------------------")
+  print(normalPar)
+  sink()
+  
+  predNormal_outTrain = predict(modelNormal, dataTrain_final)
+  predNormal_outTest = predict(modelNormal, dataTest_final)
+  
+  plot.ts(dataTrain_final$nStepAhead, lwd=2)
+  lines(predNormal_outTrain, lwd=2, col=2)
+  
+  plot.ts(dataTest_final$nStepAhead, lwd=2)
+  lines(predNormal_outTest, lwd=2, col=2)
+  rtr = list()
+  rtr$svr_Train = predNormal_outTrain
+  rtr$svr_Test = predNormal_outTest
+  rtr$Target_Train = dataTrain_final$nStepAhead
+  rtr$Target_Test = dataTest_final$nStepAhead
+  return(rtr)
+}
+
+# Get SVM-MKCD parameters based on GenSA 
 getSVR_MKCD_par = function(dataTrain, dataValid, w, phi
                            , Class, nStepAhead=1, alpha=0.05){
   #data = normTrain; nStepAhead = 7
@@ -124,7 +180,10 @@ getSVR_MKCD_par = function(dataTrain, dataValid, w, phi
   fitnessSVR = function(parameters){
     #data = normTrain; parameters = c(1, 2, 1, 1.5, 1.5, 2)
     #Class = "None"; w = 7; phi = 14; alpha = 0.05
-     
+    print("Gensa -----")
+    print(paste('Cost: ', round(parameters[1],6), ' -- Epsilon: ', round(parameters[2],6)
+                , ' -- Gamma: ', round(parameters[3],6), ' -- Degree: ', round(parameters[4],6)
+                , ' -- Coef0: ', round(parameters[5],6), ' -- kernel: ', KernelFunctionsLabels[floor(parameters[6])], sep=""));
     runningMeanincDia = getRunningMean(normTrain, phi)
     #plot.ts(runningMeanincDia, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
     #w = w; alpha = alpha; nStepAhead = 1
@@ -215,13 +274,13 @@ getSVR_MKCD_par = function(dataTrain, dataValid, w, phi
     MSE = getMSE(target = dataValid_fit_model$nStepAhead, forecast = predSVM_valid)
     return(MSE)
   }
-
+  
   # min_phi = 7; max_phi = 30+1-1e-5
   # min_w = 7; max_w = 30+1-1e-5
   # min_alpha = 0.01; max_alpha  = 0.2
-  min_cost = 1e-5; max_cost = 1e+2
-  min_epsilon = 1e-5; max_epsilon = 1
-  min_gamma = 1e-5; max_gamma = 1e+4
+  min_cost = 1e-1; max_cost = 1e+4
+  min_epsilon = 1e-3; max_epsilon = 1e-1
+  min_gamma = 1e-5; max_gamma = 1
   min_degree = 1; max_degree = 5
   min_coef0 = 0; max_coef0 = 1e+1
   max_KernelFunctions = (length(KernelFunctionsLabels)+1-1e-5)
@@ -236,14 +295,17 @@ getSVR_MKCD_par = function(dataTrain, dataValid, w, phi
       expr = GenSA(lower = lowers, upper = uppers
                    , fn = fitnessSVR
                    , par = (lowers+uppers)/2
-                   , control=list(max.call = pGSA$max.call
+                   , control=list(temperature = pGSA$temperature
                                   , max.time = pGSA$max.time
-                                  , maxit = pGSA$maxit
+                                  , max.call = pGSA$max.call
+                                  #, maxit = pGSA$maxit
                                   , verbose = FALSE 
                                   , smooth = FALSE
-                                  , seed = 123
+                                  , seed = -123
                                   , nb.stop.improvement = pGSA$nb.stop.improvement
-                                  , temperature = pGSA$temperature))
+                                  
+                                  )
+                   )
     }, 
     error = function(e){
       message(paste("Error in GenSA.", e)); 
@@ -262,11 +324,15 @@ getSVR_MKCD_par = function(dataTrain, dataValid, w, phi
   return(optimal)
   }
 
+# Get SVM-MKCD models based on GenSA 
 getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi
                             , nStepAhead=1, alpha=0.05){
   #dataTrain = normTrain; dataValid = normValid; dataTest = normTest 
   #w = 7; phi = 14; alpha = 0.05; nStepAhead = 1
-
+  sink(file = paste("models_", country, "_SVM_MKCD_opt.txt", sep="")
+       , append = FALSE, type = "output", split = FALSE)
+  
+  print("-------------------- modelNone MKCD --------------------")
   nonePar = getSVR_MKCD_par(dataTrain, dataValid, w = w, phi = phi
                             , Class = "None", nStepAhead) #nonePar$svmParameters
   finalData  = getFinalData(time_series_train = dataTrain
@@ -287,9 +353,12 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi
                   , coef0 = nonePar$svmParameters[5]
                   , kernel = KernelFunctionsLabels[floor(nonePar$svmParameters[6])])
   #plot.ts(dataTrain_final$nStepAhead); lines(modelNone$fitted, col=2)
-  print("modelNone MKCD: OK")
-  
+
+  print("modelNone MKCD: OK -- opt parameters")
+  print(nonePar)
+
   # Positive model
+  print("-------------------- modelPositive MKCD --------------------")
   positivePar = getSVR_MKCD_par(dataTrain, dataValid, w = w, phi = phi
                                 , Class = "Positive", nStepAhead) #nonePar$svmParameters
   finalData  = getFinalData(time_series_train = dataTrain
@@ -310,10 +379,13 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi
                   , coef0 = positivePar$svmParameters[5]
                   , kernel = KernelFunctionsLabels[floor(positivePar$svmParameters[6])])
   #plot.ts(dataTrain_final$nStepAhead); lines(modelPositive$fitted, col=2)
-  print("modelPositive MKCD: OK")
-
+  print("modelPositive MKCD: OK -- opt parameters")
+  print(positivePar)
+  
   # Model Negative
   #modelNegative= svm(formula(formula), data = negativeTrendTrain)
+  print("-------------------- modelNegative MKCD --------------------")
+  
   negativePar = getSVR_MKCD_par(dataTrain, dataValid, w = w, phi = phi
                                 , Class = "Negative", nStepAhead) #nonePar$svmParameters
   finalData  = getFinalData(time_series_train = dataTrain
@@ -334,7 +406,9 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi
                   , coef0 = negativePar$svmParameters[5]
                   , kernel = KernelFunctionsLabels[floor(negativePar$svmParameters[6])])
   #plot.ts(dataTrain_final$nStepAhead); lines(modelNegative$fitted, col=2)
-  print("modelNegative MKCD: OK")
+  print("modelNegative MKCD: OK -- opt parameters")
+  print(negativePar)
+  sink()
   
   # MKCD ----
   
@@ -389,8 +463,8 @@ getModelSVR_MKCD = function(dataTrain, dataValid, dataTest, w, phi
   rtr = list()
   rtr$MKCD_SVM_Train = pred_out_Train
   rtr$MKCD_SVM_Test = pred_out_Test
-  rtr$Target_Train = dataTrain_final$nStepAhead
-  rtr$Target_Test = dataTest_final$nStepAhead
+  rtr$Target_Train = finalData$dataTrain$nStepAhead
+  rtr$Target_Test = finalData$dataTest$nStepAhead
   return(rtr)
 }
 

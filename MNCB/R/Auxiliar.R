@@ -61,28 +61,19 @@ getFinalData = function(time_series_train, time_series_test, phi, w
   #time_series_train = dataTrain; time_series_test = dataValid
   #phi = 7; w = 14; alpha = 0.05; Class = 'Positive'
   
-  runningMean_train = getRunningMean(time_series_train, phi)
-  runningMean_test = getRunningMean(time_series_test, phi)
-  #plot.ts(runningMean_train, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
+  dataTrain_Test = c(time_series_train, time_series_test)
+  runningMeanincDia_Train_Test = getRunningMean(dataTrain_Test, phi)
+  trendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMeanincDia_Train_Test, 
+                                      w = w, alpha = alpha)
   
-  #trendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_train
-  #                                    , w = w
-  #                                    , alpha = alpha) 
-  #View(trendAnalysis_df)
-  
+  nr = nrow(trendAnalysis_df); ntest = length(time_series_test)
+  ntrain = length(time_series_train) - (phi+w)
+  trainTrendAnalysis_df = trendAnalysis_df[1:ntrain,]
+  testTrendAnalysis_df = trendAnalysis_df[(ntrain+1):nr,]
+
   # Create Sliding window matrix
-  trainTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_train, 
-                                           w = w, 
-                                           alpha = alpha,
-                                           nStepAhead = nStepAhead)
-  
-  validTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = time_series_test, 
-                                           w = w, 
-                                           alpha = alpha,
-                                           nStepAhead = nStepAhead) 
-  
   dataTrain = trainTrendAnalysis_df[which(trainTrendAnalysis_df$Class == Class),]
-  dataTest = validTrendAnalysis_df[which(validTrendAnalysis_df$Class == Class),]
+  dataTest = testTrendAnalysis_df[which(testTrendAnalysis_df$Class == Class),]
   
   data = NULL
   data$dataTrain = dataTrain
@@ -94,22 +85,26 @@ getFinalDataAll = function(time_series_train, time_series_test, phi, w
   #time_series_train = dataTrain; time_series_test = dataValid
   #phi = 7; w = 14; alpha = 0.05; Class = 'Positive'
   
-  runningMean_train = getRunningMean(time_series_train, phi)
-  runningMean_test = getRunningMean(time_series_test, phi)
+  dataTrain_Test = c(time_series_train, time_series_test)
+  #plot.ts(dataTrain_Test)
+  runningMeanincDia_Train_Test = getRunningMean(dataTrain_Test, phi)
+  
+  trendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMeanincDia_Train_Test, 
+                                      w = w, alpha = alpha)
+  
+  #runningMean_train = getRunningMean(time_series_train, phi)
+  #runningMean_test = getRunningMean(time_series_test, phi)
   #plot.ts(runningMean_train, ylab=paste("Rolling ", phi, "-day average (", country ,")", sep=""))
 
-  trainTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = runningMean_train, 
-                                           w = w, 
-                                           alpha = alpha,
-                                           nStepAhead = nStepAhead)
-  
-  validTrendAnalysis_df = getTrendAnalysis(timeSeries_ts = time_series_test, 
-                                           w = w, 
-                                           alpha = alpha,
-                                           nStepAhead = nStepAhead) 
+  nr = nrow(trendAnalysis_df); ntest = length(time_series_test)
+  ntrain = length(time_series_train) - (phi+w)
+  trainTrendAnalysis_df = trendAnalysis_df[1:ntrain,]
+  testTrendAnalysis_df = trendAnalysis_df[(ntrain+1):nr,]
+  #plot.ts(trainTrendAnalysis_df$nStepAhead)
+  #plot.ts(testTrendAnalysis_df$nStepAhead)
   
   dataTrain = trainTrendAnalysis_df
-  dataTest = validTrendAnalysis_df
+  dataTest = testTrendAnalysis_df
   
   data = NULL
   data$dataTrain = dataTrain
@@ -138,15 +133,15 @@ getRunningMean = function(timeSeries, n){
   return(as.numeric(na.omit(runningMean)))
 }
 
-getNormalizeTS = function(array, min, max, lim_inf=0, lim_sup=1){
+getNormalizeTS = function(array, min, max){#, lim_inf=0, lim_sup=1){
   #Normalize to [0, 1]
   range = max - min
   norm1 = (array - min) / range
   
   #Then scale to [x,y]
-  range2 = lim_sup - lim_inf
-  normalized = (norm1*range2) + lim_sup
-  return(normalized)
+  #range2 = lim_sup - lim_inf
+  #normalized = (norm1*range2) + lim_sup
+  return(norm1)
 }
 
 denormalize = function(array, min, max, x, y){
